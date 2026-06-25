@@ -1,0 +1,6 @@
+.build/
+dist/
+release/
+.swiftpm-home/
+.codex/
+.DS_Store

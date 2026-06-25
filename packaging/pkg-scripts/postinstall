@@ -1,0 +1,57 @@
+#!/bin/sh
+set -eu
+
+APP_NAME="Nowbar"
+BUNDLE_ID="com.marlonjd.Nowbar"
+APP_PATH="/Applications/${APP_NAME}.app"
+LEGACY_APP_PATH="/Applications/ListeningNowStatusBar.app"
+LEGACY_BUNDLE_ID="com.marlonjd.ListeningNowStatusBar"
+
+CONSOLE_USER="$(/usr/bin/stat -f %Su /dev/console)"
+if [ -z "$CONSOLE_USER" ] || [ "$CONSOLE_USER" = "root" ] || [ "$CONSOLE_USER" = "loginwindow" ]; then
+  exit 0
+fi
+
+USER_HOME="$(/usr/bin/dscl . -read "/Users/${CONSOLE_USER}" NFSHomeDirectory | /usr/bin/awk '{print $2}')"
+USER_ID="$(/usr/bin/id -u "$CONSOLE_USER")"
+LAUNCH_AGENTS_DIR="${USER_HOME}/Library/LaunchAgents"
+PLIST_PATH="${LAUNCH_AGENTS_DIR}/${BUNDLE_ID}.plist"
+LEGACY_PLIST_PATH="${LAUNCH_AGENTS_DIR}/${LEGACY_BUNDLE_ID}.plist"
+GUI_DOMAIN="gui/${USER_ID}"
+
+/bin/mkdir -p "$LAUNCH_AGENTS_DIR"
+/bin/chmod 755 "$LAUNCH_AGENTS_DIR"
+/usr/sbin/chown "$CONSOLE_USER" "$LAUNCH_AGENTS_DIR"
+
+cat >"$PLIST_PATH" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>${BUNDLE_ID}</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/open</string>
+    <string>-n</string>
+    <string>${APP_PATH}</string>
+  </array>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>
+PLIST
+
+/usr/sbin/chown "$CONSOLE_USER" "$PLIST_PATH"
+/bin/chmod 644 "$PLIST_PATH"
+
+/bin/launchctl bootout "$GUI_DOMAIN" "$LEGACY_PLIST_PATH" >/dev/null 2>&1 || true
+/bin/rm -f "$LEGACY_PLIST_PATH"
+/bin/rm -rf "$LEGACY_APP_PATH"
+/usr/bin/pkill -x "ListeningNowStatusBar" >/dev/null 2>&1 || true
+/usr/bin/pkill -x "$APP_NAME" >/dev/null 2>&1 || true
+/bin/launchctl bootout "$GUI_DOMAIN" "$PLIST_PATH" >/dev/null 2>&1 || true
+/bin/launchctl bootstrap "$GUI_DOMAIN" "$PLIST_PATH" >/dev/null 2>&1 || true
+/bin/launchctl kickstart -k "${GUI_DOMAIN}/${BUNDLE_ID}" >/dev/null 2>&1 || true
+
+exit 0
