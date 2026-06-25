@@ -4,6 +4,8 @@ Pure Swift macOS menu bar app that shows and controls current media from the sta
 
 Copyright (C) 2026 Burak Karahan.
 
+![Nowbar demo](Docs/nowbar-demo.png)
+
 Supported local readers:
 
 - Spotify, when Spotify is playing or paused.
